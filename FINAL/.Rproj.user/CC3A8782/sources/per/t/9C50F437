@@ -1,0 +1,32 @@
+{
+    "id": "9C50F437",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1608363368816.0,
+    "source_on_save": false,
+    "relative_order": 5,
+    "properties": {
+        "expression": "postdf",
+        "caption": "postdf",
+        "totalObservations": 1,
+        "displayedObservations": 1,
+        "variables": 14,
+        "cacheKey": "DE8B18B9",
+        "object": "postdf",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=postdf&cache_key=DE8B18B9&max_cols=50",
+        "preview": 0
+    },
+    "folds": "",
+    "lastKnownWriteTime": 2019025509798641664,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1608363368816,
+    "read_only": false,
+    "read_only_alternatives": []
+}

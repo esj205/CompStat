@@ -1,0 +1,72 @@
+---
+title: "Computing_HW5_2020321163_엄상준"
+author: "Eom SangJun"
+date: '2020 12 8 '
+output: word_document
+---
+
+```{r}
+###############
+##9.4
+###############
+set.seed(1234)
+
+##dataset
+fish <- read.table('salmon.dat', header=TRUE)
+
+##Regression Fitting
+x <- 1/fish$spawners
+y <- 1/fish$recruits
+df <- data.frame(x=x, y=y)
+rlm <- lm(y ~ x, data = df)
+
+#point estimate
+#R=s=(1-beta2)/beta1
+point_est = (1-rlm$coefficients[2])/rlm$coefficients[1]
+point_est
+
+
+##Bootstrapping the residuals
+error <- rlm$residuals
+y_hat <- rlm$fitted.values
+itr <- 10000
+len <- length(y_hat)
+est_list1 <- c()
+for(i in 1:itr){
+  new_error <- error[sample(1:len,len, replace=T)]
+  new_y <- y_hat + new_error
+  new_df <- data.frame(x=x, y=new_y)
+  lm_res <- lm(y ~ x, data=new_df)
+  est_list1[i] <- (1-lm_res$coefficients[2])/lm_res$coefficients[1]
+}
+
+conf_res <- quantile(est_list1,c(0.025,0.975),na.rm=T)
+sd(est_list1)
+hist(est_list1, main='Residual Bootstrap', xlab='(1-beta2)/beta1')
+
+##Bootstrapping the pairs
+est_list2 <- c()
+for(i in 1:itr){
+  ind <- sample(1:len, len, replace=T)
+  new_x <- x[ind]
+  new_y <- y[ind]
+  new_df <- data.frame(x=new_x, y=new_y)
+  lm_pairs <- lm(y ~ x, data=new_df)
+  est_list2[i] <- (1-lm_pairs$coefficients[2])/lm_pairs$coefficients[1]
+}
+
+conf_pairs <- quantile(est_list2, c(0.025, 0.975), na.rm=T)
+sd(est_list2)
+hist(est_list2, main='Pairs Bootstrap', xlab='(1-beta2)/beta1')
+
+#Confidence Interval
+conf_res
+conf_pairs
+
+#mean and standard deviation
+mean(est_list1)
+mean(est_list2)
+sd(est_list1)
+sd(est_list2)
+
+```

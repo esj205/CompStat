@@ -1,0 +1,410 @@
+########################################################################################################################
+########################                            problem 0                       ####################################
+########################################################################################################################
+library("Rcpp")
+library("RcppArmadillo")
+
+f = function(x) log(x) / (1+x)
+grid = seq(from=0.5,to=20,length.out = 1000)
+l = NULL
+for(i in 1:length(grid)){
+  l[i] <- f(grid[i])
+}
+plot(grid,l,type="l")
+
+sourceCpp("q0.cpp")
+
+newton(par=0.1,epsilon=10e-5,max_iter=1000)
+secant(par=c(0.5,1),epsilon=10e-5,max_iter=1000)
+
+# -log10(1/2) = 0.3010 ==> We need 3 ~ 4 iterations to attain 1 digit accuracy.
+bisection(a=0.5,b=5,epsilon=10e-5,max_iter=1000)$iteration # 16
+bisection(a=0.5,b=5,epsilon=10e-6,max_iter=1000)$iteration # 19
+bisection(a=0.5,b=5,epsilon=10e-7,max_iter=1000)$iteration # 23
+
+
+newton(par=0.1,epsilon=10e-5,max_iter=1000)$par
+secant(par=c(0.5,1),epsilon=10e-5,max_iter=1000)$par
+bisection(a=0.5,b=5,epsilon=10e-5,max_iter=1000)$par
+fixed_point(par=0.1,alpha=0.5,epsilon=10e-5,max_iter=1000)$par
+
+
+
+
+
+
+########################################################################################################################
+########################                            problem 2.1                     ####################################
+########################################################################################################################
+library("Rcpp")
+library("RcppArmadillo")
+
+# i.i.d from a Cauchy (theta, 1)
+# Cauchy(theta,1) pdf f(x) = (1/pi)*(1/((x-theta)^2+1))
+sourceCpp("q1.cpp")
+data <- c(1.77, -0.23, 2.76, 3.80, 3.47, 56.75, -1.34, 4.24,
+          -2.44,  3.29, 3.71,-2.40, 4.53, -0.07, -1.05,-13.87,
+          -2.53, -1.75, 0.27, 43.21 )
+
+#----------------------------                             (a)                               ----------------------------#
+library(tidyverse)
+
+theta = seq(from=-20,to=50,length.out = 100000)
+logl <- NULL
+for(i in 1:length(theta)){
+  logl[i] <- sum(dcauchy(data,location=theta[i],scale=1,log=T))
+}
+logl1 <- NULL
+for(i in 1:length(theta)){
+  logl1[i] <- sum(-2*(theta[i]-data)/((data-theta[i])^2+1))
+}
+
+#plot
+dfplot <- data.frame("theta"=theta,"logL"=logl,"logL1" = logl1)
+ggplot(data=dfplot,aes(x=theta,y=logL)) +
+  geom_line() + 
+  geom_vline(xintercept=-.1923,col="red",linetype="dashed") +
+  theme_bw()
+ggplot(data=dfplot,aes(x=theta,y=logL1)) +
+  geom_line() + 
+  geom_hline(yintercept=0,col="red",linetype="dashed") +
+  theme_bw() + 
+  geom_vline(xintercept = initial,col="red",alpha=0.5)
+
+#NEwton
+initial <- c(-11,-1,0,1.5,4,4.7,7,8,38)
+res_par <- NULL
+res_logL <- NULL
+for(i in 1:length(initial)){
+  res_temp <- newton(par=initial[i],data=data,epsilon=10e-6,max_iter = 1000)
+  res_par[i] <- res_temp$par
+  res_logL[i] <- res_temp$logL
+}
+round(res_par,4)
+round(res_logL,4)
+# using newton's method not stable ( local optima, etc.)
+# mean of data 좋지 않음
+newton(par=mean(data),data=data,epsilon=10e-6,max_iter = 1000)
+# median of data 좋음
+
+
+
+#----------------------------                             (b)                               ----------------------------#
+
+bisection(a=-1,b=1,data=data,epsilon=10e-5,max_iter=1000)
+# 
+bisection(a=-1,b=2.5,data=data,epsilon=10e-5,max_iter=1000)$par
+bisection(a=2.5,b=3,data=data,epsilon=10e-5,max_iter=1000)$par
+
+
+theta = seq(from=-1,to=4,length.out = 100000)
+logl1 <- NULL
+for(i in 1:length(theta)){
+  logl1[i] <- sum(-2*(theta[i]-data)/((data-theta[i])^2+1))
+}
+dfplot <- data.frame("theta"=theta,"logL1" = logl1)
+ggplot(data=dfplot,aes(x=theta,y=logL1)) +
+  geom_line() + 
+  geom_hline(yintercept = 0,col="red")+
+  geom_vline(xintercept=-.1923,col="red",linetype="dashed") +
+  geom_vline(xintercept=1.713573,col="red",linetype="dashed") +
+  geom_vline(xintercept=2.817474,col="red",linetype="dashed") +
+  theme_bw()
+
+#[5,10]의 경우 f'(b)*f'(c)가 항상  0보다 크므로, 구간이 5쪽으로 점점 좁혀져 감. 
+bisection(a=5,b=10,data=data,epsilon=10e-5,max_iter=1000)
+
+
+#----------------------------                             (c)                               ----------------------------#
+
+# alpha의 값이 커질수록 더 적은 iteration이 필요해 보인다.
+fixed_point(-1,data=data,alpha=1,epsilon = 10e-5,max_iter = 1000000)
+fixed_point(-1,data=data,alpha=0.64,epsilon = 10e-5,max_iter = 1000)
+fixed_point(-1,data=data,alpha=0.25,epsilon = 10e-5,max_iter = 1000)
+
+fixed_point(38,data=data,alpha=1,epsilon = 10e-5,max_iter = 10000000)
+fixed_point(38,data=data,alpha=.64,epsilon = 10e-5,max_iter = 1000)
+fixed_point(38,data=data,alpha=.25,epsilon = 10e-5,max_iter = 1000)
+
+#local optimum에 빠진 경우
+fixed_point(5,data=data,alpha=.25,epsilon = 10e-5,max_iter = 10000000)
+
+
+
+#----------------------------                             (d)                               ----------------------------#
+#global optimum
+secant(par=c(-2,-1),data=data,epsilon = 10e-5,max_iter=1000)$par
+#local optimum
+secant(par=c(-3,3),data=data,epsilon = 10e-5,max_iter=1000)$par
+#Not converge
+secant(par=c(-10,-8),data=data,epsilon = 10e-5,max_iter=1000)$par
+
+#----------------------------                             (e)                               ----------------------------#
+# speed?
+
+
+bisection(a=-1,b=1,data=data,epsilon=10e-2,max_iter=1000)$iteration
+bisection(a=-1,b=1,data=data,epsilon=10e-3,max_iter=1000)$iteration
+bisection(a=-1,b=1,data=data,epsilon=10e-4,max_iter=1000)$iteration
+bisection(a=-1,b=1,data=data,epsilon=10e-5,max_iter=1000)$iteration
+bisection(a=-1,b=1,data=data,epsilon=10e-6,max_iter=1000)$iteration
+bisection(a=-1,b=1,data=data,epsilon=10e-7,max_iter=1000)$iteration
+bisection(a=-1,b=1,data=data,epsilon=10e-8,max_iter=1000)$iteration
+
+
+
+library(microbenchmark)
+microbenchmark(
+  newton(par=median(data),data=data,epsilon=10e-6,max_iter = 1000),
+  bisection(a=-1,b=1,data=data,epsilon=10e-5,max_iter=1000),
+  fixed_point(-1,data=data,alpha=1,epsilon = 10e-5,max_iter = 1000000),
+  secant(par=c(-2,-1),data=data,epsilon = 10e-5,max_iter=1000)
+)
+
+#stability ? <- based on initial value and algorithm and function shape.
+
+
+
+
+#normal ???
+sourceCpp("q1normal.cpp")
+
+data <- rnorm(20,mean=0,1)
+
+theta = seq(from=-10,to=10,length.out = 1000)
+logl <- NULL
+logl1 <- NULL
+for(i in 1:length(theta)){
+  logl[i] <- sum(dnorm(data,mean=theta[i],sd=1,log=T))
+  logl1[i] <- sum(data-theta[i])
+}
+#plot
+dfplot <- data.frame("theta"=theta,"logL"=logl,"logL1"=logl1)
+ggplot(data=dfplot,aes(x=theta,y=logL)) +
+  geom_line() + 
+  geom_vline(xintercept=mean(data),col="red",linetype="dashed") +
+  theme_bw()
+ggplot(data=dfplot,aes(x=theta,y=logL1)) +
+  geom_line() + 
+  geom_vline(xintercept=mean(data),col="red",linetype="dashed") +
+  theme_bw()
+
+
+newton(par=-30,data=data,epsilon=10e-6,max_iter = 1000)
+bisection(a=-10,b=10,data=data,epsilon=10e-5,max_iter=1000)
+fixed_point(0,data=data,alpha=1,epsilon = 10e-5,max_iter = 1000000)
+secant(par=c(-100,-99),data=data,epsilon = 10e-5,max_iter=1000)
+
+logl1 = function(data,par){
+  return(sum(data-par))
+}
+2 + logl1(data,2)
+
+########################################################################################################################
+########################                            problem 2.2                     ####################################
+########################################################################################################################
+library("Rcpp")
+library("RcppArmadillo")
+
+#----------------------------                             (a)                               ----------------------------#
+sourceCpp("q2.cpp")
+logl <- function(x,par){
+  sum(log((1-cos(x-par))/(2*pi)))
+}
+logl1 <- function(x,par){
+  sum(-sin(x-par)/(1-cos(x-par)))
+}
+logl2 <- function(x,par){
+  sum((cos(x-par)*(1-cos(x-par)) - sin(x-par)*sin(x-par))/
+    ((1-cos(x-par))*(1-cos(x-par))))
+}
+data = c(3.91,4.85,2.28,4.06,3.70,4.04,5.46,3.53,
+         2.28,1.96,3.88,2.22,3.47,4.82,2.46,2.99,
+         2.54,0.52,2.50)
+theta <- seq(from=-pi,to=pi,length.out = 1000)
+l <- NULL ; l1 <- NULL ; l2 <- NULL;
+for(i in 1:length(theta)){
+  l[i] <- logl(data,theta[i])
+  l1[i] <- logl1(data,theta[i])
+  l2[i] <- logl2(data,theta[i])
+}
+par(mfrow=c(3,1))
+plot(theta,l,type="l")
+plot(theta,l1,type="l")
+plot(theta,l2,type="l")
+
+
+
+
+#----------------------------                             (b)                               ----------------------------#
+
+# using only first momeny, we have arcsin(xbar - pi)
+initial = asin(mean(data)-pi) # 0.09380803
+
+#----------------------------                             (c)                               ----------------------------#
+
+newton(par=initial,data=data,epsilon = 10e-5,max_iter = 1000)$par
+newton(par=2.7,data=data,epsilon = 10e-5,max_iter = 1000)$par
+newton(par=-2.7,data=data,epsilon = 10e-5,max_iter = 1000)$par
+
+#----------------------------                             (d)                               ----------------------------#
+library(tidyverse)
+
+
+initial <- seq(from=-pi,to=pi,length.out = 200)
+l4 <- NULL
+for(i in 1:length(initial)){
+  l4[i] <- newton(initial[i],data=data,epsilon = 10e-5,max_iter = 1000)$par
+}
+edge <- unique(round(l4,5)) # 19 peaks.
+
+plot1_df <- data.frame("theta"=theta,"logL"=l)
+
+res <- data.frame("theta" = initial, "Conv" = round(l4,5))
+res$group <- as.factor(res$Conv)
+res$group <- as.numeric(res$group)
+ConvlogL <- NULL
+for(i in 1:nrow(res)){
+  ConvlogL[i] <- logl(data,res$Conv[i])
+}
+res$ConvlogL <- ConvlogL
+logLvec<- NULL;
+for(i in 1:nrow(res)){
+  logLvec[i] <- logl(data,res$theta[i])
+}
+res$logL <- logLvec
+resdf <- res %>% 
+  group_by(group) %>% 
+  summarise(Min=min(theta),Max=max(theta))
+resdf$logL <- -90
+
+ggplot(data=plot1_df) +
+  geom_line(aes(x=theta,y=logL),color="grey") +
+  geom_line(data=res,aes(x=theta,y=logL,colour=as.factor(group)),size=1.5) + 
+  geom_point(data=res,aes(x=Conv,y=ConvlogL,colour=as.factor(group)),size=3.5) + 
+  geom_segment(data=resdf,aes(x=Min,xend=Max,y=logL,yend=logL,colour=as.factor(group)),size=3) +
+  theme_bw()
+
+
+
+#----------------------------                             (e)                               ----------------------------#
+
+# two different value
+theta[which.min(l)] # 2.279935
+newton(par=2.279935 - 0.01,data=data,epsilon = 10e-5,max_iter = 1000)$par
+newton(par=2.279935 + 0.01,data=data,epsilon = 10e-5,max_iter = 1000)$par
+
+
+########################################################################################################################
+########################                            problem 2.5                     ####################################
+########################################################################################################################
+library("Rcpp")
+library("RcppArmadillo")
+
+data <- read.table("oil.txt",header = F)
+X <- as.matrix(data[,3:4])
+y <- data[,2]  
+par = as.numeric(solve(t(X)%*%X)%*%t(X)%*%y)
+summary(glm(y~X-1,family="poisson")) # coef = (0.1179,0.5508) / std = (0.2717, 0.3761)
+
+sourceCpp("q5.cpp")
+#----------------------------                             (a)                               ----------------------------#
+#----------------------------                             (b)                               ----------------------------#
+#----------------------------                             (c)                               ----------------------------#
+newton(par=par,X=X,y=y,epsilon=10e-10,max_iter = 1000,method="NR",halve=F)$par
+newton(par=par,X=X,y=y,epsilon=10e-10,max_iter = 1000,method="FS",halve=F)$par
+
+#----------------------------                             (d)                               ----------------------------#
+# -H^-1 : COV.hat
+sqrt(diag(solve(-newton(par=par,X=X,y=y,epsilon=10e-5,max_iter = 1000,method="NR",halve=F)$hessian)))
+
+
+#----------------------------                             (e)                               ----------------------------#
+newton(par=par,X=X,y=y,epsilon=10e-5,max_iter = 1000,method="SA",halve=T)      #  step halve는 default로 쓰게 됨.
+
+#----------------------------                             (f)                               ----------------------------#
+newton(par=par,X=X,y=y,epsilon=10e-6,max_iter = 1000,method="QN",halve=F)$par # 튕겨져 나감
+newton(par=par,X=X,y=y,epsilon=10e-6,max_iter = 1000,method="QN",halve=T)$par # 수렴함
+
+#----------------------------                             (g)                               ----------------------------#
+NR <- as.data.frame(t(newton(par=par,X=X,y=y,epsilon=10e-5,max_iter = 1000,method="NR",halve=F)$parPath))
+FS <- as.data.frame(t(newton(par=par,X=X,y=y,epsilon=10e-5,max_iter = 1000,method="FS",halve=F)$parPath))
+SA <- as.data.frame(t(newton(par=par,X=X,y=y,epsilon=10e-5,max_iter = 1000,method="SA",halve=F)$parPath))
+QN <- as.data.frame(t(newton(par=par,X=X,y=y,epsilon=10e-5,max_iter = 10000,method="QN",halve=T)$parPath))
+BFGS <- as.data.frame(t(newton(par=par,X=X,y=y,epsilon=10e-5,max_iter = 10000,method="BFGS",halve=T)$parPath))
+grid <- expand.grid(seq(from=-1,to=1,length.out = 100),seq(from=0,to=2,length.out = 300))
+logL <- NULL
+for(i in 1:nrow(grid)){
+  logL[i] <- sum( dpois(y,exp(X%*%as.numeric(grid[i,])),log = T) )
+}
+
+
+library(tidyverse)
+library(reshape2)
+
+oil.melt <- melt(logL)
+oil.melt$V1 <- grid[,1]
+oil.melt$V2 <- grid[,2]
+
+oil.melt$equalSpace <- cut(oil.melt$value, 100)
+breaks <- levels(unique(oil.melt$equalSpace))
+NR$value = 1 ; FS$value = 1 ; SA$value = 1 ; QN$value = 1 ; BFGS$value =1
+
+  
+p1 <- ggplot(oil.melt, aes(x = V1, y = V2, z = value)) +
+  geom_tile(aes(fill = equalSpace)) +
+  stat_contour(color = 'black', alpha = 0.8,bins = 30) +
+  theme_bw()+
+  scale_fill_viridis_d(name="logL",breaks=breaks,guide=FALSE) + 
+  geom_line(data=NR,aes(x=V1,y=V2),col="red",size=1) + 
+  geom_point(data=NR,aes(x=V1,y=V2),col="red",size=1.5) +
+  geom_point(aes(x=par[1],y=par[2]),col="#FF69B4",size=3) +
+  geom_point(aes(x=NR[nrow(NR),1],y=NR[nrow(NR),2]),size=5,col="red")
+
+
+p2 <- ggplot(oil.melt, aes(x = V1, y = V2, z = value)) +
+  geom_tile(aes(fill = equalSpace)) +
+  stat_contour(color = 'black', alpha = 0.8,bins = 30) +
+  theme_bw()+
+  scale_fill_viridis_d(name="logL",breaks=breaks,guide=FALSE) + 
+  geom_line(data=FS,aes(x=V1,y=V2),col="blue",size=1) + 
+  geom_point(data=FS,aes(x=V1,y=V2),col="blue",size=1.5) +
+  geom_point(aes(x=par[1],y=par[2]),col="#FF69B4",size=3) +
+  geom_point(aes(x=FS[nrow(FS),1],y=FS[nrow(FS),2]),size=5,col="blue")
+
+
+p3 <- ggplot(oil.melt, aes(x = V1, y = V2, z = value)) +
+  geom_tile(aes(fill = equalSpace)) +
+  stat_contour(color = 'black', alpha = 0.8,bins = 30) +
+  theme_bw()+
+  scale_fill_viridis_d(name="logL",breaks=breaks,guide=FALSE) + 
+  geom_line(data=SA,aes(x=V1,y=V2),col="purple",size=1) + 
+  geom_point(data=SA,aes(x=V1,y=V2),col="purple",size=1.5) +
+  geom_point(aes(x=par[1],y=par[2]),col="#FF69B4",size=3) +
+  geom_point(aes(x=SA[nrow(SA),1],y=SA[nrow(SA),2]),size=5,col="purple") 
+
+
+p4 <- ggplot(oil.melt, aes(x = V1, y = V2, z = value)) +
+  geom_tile(aes(fill = equalSpace)) +
+  stat_contour(color = 'black', alpha = 0.8,bins = 30) +
+  theme_bw()+
+  scale_fill_viridis_d(name="logL",breaks=breaks,guide=FALSE) + 
+  geom_line(data=QN,aes(x=V1,y=V2),col="black",size=1) + 
+  geom_point(data=QN,aes(x=V1,y=V2),col="black",size=1.5) +
+  geom_point(aes(x=par[1],y=par[2]),col="#FF69B4",size=3) +
+  geom_point(aes(x=QN[nrow(QN),1],y=QN[nrow(QN),2]),size=5,col="black")
+
+
+p5 <- ggplot(oil.melt, aes(x = V1, y = V2, z = value)) +
+  geom_tile(aes(fill = equalSpace)) +
+  stat_contour(color = 'black', alpha = 0.8,bins = 30) +
+  theme_bw()+
+  scale_fill_viridis_d(name="logL",breaks=breaks,guide=FALSE) + 
+  geom_line(data=BFGS,aes(x=V1,y=V2),col="skyblue",size=1) + 
+  geom_point(data=BFGS,aes(x=V1,y=V2),col="skyblue",size=1.5) +
+  geom_point(aes(x=par[1],y=par[2]),col="#FF69B4",size=3) +
+  geom_point(aes(x=BFGS[nrow(BFGS),1],y=BFGS[nrow(BFGS),2]),size=5,col="skyblue")
+library(gridExtra)
+grid.arrange(p1,p2,p3,p4,ncol=2)
+
+

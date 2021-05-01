@@ -1,0 +1,141 @@
+// [[Rcpp::depends(RcppArmadillo)]]
+#include <RcppArmadillo.h>
+
+using namespace arma;
+using namespace std;
+using namespace Rcpp;
+
+
+inline double f(double x)
+{
+  return log(x)/(1+x) ;
+}
+
+inline double f1(double x)
+{
+  return (1+x-x*log(x))/(x*pow((1+x),2)) ;
+}
+
+inline double f2(double x)
+{
+  return (  -log(x)*x*pow((1+x),2) - (1+x-x*log(x))*(3*pow(x,2)+4*x+1)  ) /
+    (pow((x*pow((1+x),2)),2)) ;
+}
+
+
+
+// [[Rcpp::export]]
+
+
+List bisection(double a,
+               double b,
+               double epsilon,
+               int max_iter){
+  int i = 0;
+  double c = a + (b-a)/2  ; // c0 : avoid overflow.
+  double diff = fabs(b-c) ; // c0-b0 ; initial value for difference
+  while(fabs(diff)>epsilon){
+    if(i == max_iter){
+      cout<<"Reached Maximum Iteration. Need more max_iter.\n"<<endl;
+      break;
+    }
+    i++;
+    if(f1(b)*f1(c) < 0 ) {
+      a = c ;
+    }else {
+      b = c ;
+    }
+    c = a + (b-a)/2 ; 
+    diff = fabs(b-a) ;
+  }
+  double res = c;
+  return List::create(Named("iteration") = i,
+                      Named("tolerance") = diff,
+                      Named("par") = c,
+                      Named("Maximum Value") = f(res));
+}
+
+
+// [[Rcpp::export]]
+
+List newton(double par,
+            double epsilon,
+            int max_iter){
+  int i = 0;
+  double diff = 1.0;
+  
+  while(fabs(diff) > epsilon){
+    if(i == max_iter){
+      cout<<"Reached Maximum Iteration. Need more max_iter.\n"<<endl;
+      break;
+    }
+    i++;
+    diff = - f1(par) / f2(par) ;
+    par = par + diff;
+  }
+  return List::create(Named("iteration") = i,
+                      Named("tolerance") = diff,
+                      Named("par") = par,
+                      Named("Maximum Value") = f(par));
+}
+
+
+// [[Rcpp::export]]
+
+List secant(vec par,
+            double epsilon,
+            int max_iter){
+  int i = 1; // final par는 은 (i+1) index를 의미하게 됨.
+  double par1 = par.min() ;
+  double par2 = par.max() ;
+  double par3 = par2 - f1(par2)*(par2-par1)/( f1(par2)-f1(par1));
+  double diff = fabs(par2 - par3);
+  while(fabs(diff)>epsilon){
+    if(i == max_iter){
+      cout<<"Reached Maximum Iteration. Need more max_iter.\n"<<endl;
+      break;
+    }
+    i++;
+    double finalpar = par3 - f1(par3)*(par3-par2)/(f1(par3)-f1(par2)) ;
+    diff = fabs(finalpar-par3) ;
+    swap(par3,finalpar) ;
+    swap(par2,finalpar) ;
+  }
+  return List::create(Named("iteration") = i,
+                      Named("tolerance") = diff,
+                      Named("par") = par3,  
+                      Named("Maximum Value") = f(par3));
+}
+
+
+
+// [[Rcpp::export]]
+
+List fixed_point(double par,
+                 double alpha,
+                 double epsilon,
+                 int max_iter){
+  int i=1;  // For fixed-point method, find x(1) before algorithm begin.
+  double par_temp = par + alpha*f1(par) ;
+  double diff = fabs(par-par_temp) ; // initial value 
+  while(fabs(diff)>epsilon){
+    if(i == max_iter){
+      cout<<"Reached Maximum Iteration. Need more max_iter.\n"<<endl;
+      break;
+    }
+    i++;
+    diff = fabs(f1(par_temp)) ;
+    par_temp = par_temp  + alpha*f1(par_temp);
+  }
+  return List::create(Named("iteration") = i,
+                      Named("tolerance") = diff,
+                      Named("par") = par_temp,
+                      Named("Maximum Value") = f(par_temp));
+}
+
+
+/*** R
+
+
+
+*/

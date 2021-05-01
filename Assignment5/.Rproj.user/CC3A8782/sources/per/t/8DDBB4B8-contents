@@ -1,0 +1,70 @@
+############################################
+# STATISTICAL COMPUTING FOR DATA SCIENCE 1 # 
+# Assignment 05: Bootstrap
+
+
+# 9.4.a
+fish = read.table('salmon.dat',header = TRUE)
+colnames(fish)= c("YEAR","R","S")
+fish
+
+
+# Simple Linear Regression: 
+# 1/R = Beta1+Beta2*(1/S)
+x= 1/fish$S
+y= 1/fish$R
+model = lm(y~x)
+model.res= resid(model)
+len= length(model.res)
+yhat= predict(model)
+
+
+# 1) Bootstraping Residuals
+set.seed(2016171017)
+itr = 10
+eps = matrix(0,len,itr)
+Bhat= matrix(0,2,itr)
+yhats= matrix(0,len,itr)
+
+for(i in 1:itr){
+  eps.new= model.res[sample(1:len, len, replace=T)] # Bootstrap residuals
+  y.new = eps.new+yhat # Create a Bootstrap Set
+  run.model = lm(y.new~x) # Regress new Y on X, to estimate new Beta
+  eps[,i]= eps.new
+  yhats[,i]= y.new
+  Bhat[1,i]= run.model$coefficients[1]
+  Bhat[2,i]= run.model$coefficients[2]
+}
+
+eps
+yhats
+Bhat
+
+win.graph()
+hist(eps, breaks=40)
+newR = 1/yhats ; hist(newR, breaks=40)
+
+
+# 2) Bootstraping the cases
+set.seed(2016171017)
+Z= cbind(x,y)
+itr = 10
+eps_ = matrix(0,len,itr)
+Bhat_= matrix(0,2,itr)
+Xstar = matrix(0,len,itr)
+Ystar = matrix(0,len,itr)
+
+for(i in 1:itr){
+  Z.new = Z[sample(1:len,replace=T), ] # Bootstrap data pairs
+  run.model = lm(Z.new[,2]~Z.new[,1]) # Regress and estimate new Beta
+  eps_[,i]= resid(run.model)
+  Bhat_[1,i]= run.model$coefficients[1]
+  Bhat_[2,i]= run.model$coefficients[2]
+  Xstar[,i]= Z.new[,1]
+  Ystar[,i]= Z.new[,2]
+}
+
+eps_
+Bhat_
+Xstar
+Ystar
